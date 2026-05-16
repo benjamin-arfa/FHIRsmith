@@ -495,6 +495,7 @@ class TranslateWorker extends TerminologyWorker {
     let result = false;
     const factory = cm.jsonObj.internalSource;
     let prov = await factory.build(this.opContext, []);
+    this.opContext.registerProvider(prov);
 
     output.push({
       name: 'used-system',

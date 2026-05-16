@@ -448,6 +448,11 @@ class OperationContext {
     this.resourceCache = resourceCache;
     this.expansionCache = expansionCache;
     this.debugging = isDebugging();
+    // Providers opened during this operation that need their underlying
+    // resources (sqlite connections, etc.) released when the operation ends.
+    // Shared by reference with copy()'d contexts so a sub-operation's
+    // providers are cleaned up by the parent request's closeProviders().
+    this._openProviders = [];
 
     this.timeTracker.step('tx-op');
   }
@@ -476,6 +481,9 @@ class OperationContext {
     newContext.logEntries = [...this.logEntries];
     newContext.debugging = this.debugging;
     newContext.usageTracker = this.usageTracker;
+    // Share the same provider-cleanup list so providers opened by the copy
+    // are released when the parent operation ends.
+    newContext._openProviders = this._openProviders;
     return newContext;
   }
 
@@ -622,6 +630,37 @@ class OperationContext {
    */
   get reqId() {
     return this.id;
+  }
+
+  /**
+   * Register a code-system provider whose resources (typically a sqlite
+   * connection opened by factory.build()) should be released when the
+   * operation ends. Providers without a close() method are ignored.
+   * @param {Object} provider - The provider returned from factory.build()
+   */
+  registerProvider(provider) {
+    if (provider && typeof provider.close === 'function') {
+      this._openProviders.push(provider);
+    }
+  }
+
+  /**
+   * Close every provider registered during this operation. Safe to call
+   * multiple times — the list is cleared after the first call. Errors
+   * from individual close() calls are swallowed so one bad provider can't
+   * prevent the others from releasing their resources.
+   */
+  async closeProviders() {
+    if (!this._openProviders || this._openProviders.length === 0) return;
+    const providers = this._openProviders;
+    this._openProviders = [];
+    for (const p of providers) {
+      try {
+        await p.close();
+      } catch (_e) {
+        // Swallow — provider cleanup is best-effort.
+      }
+    }
   }
 
   /**

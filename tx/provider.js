@@ -419,6 +419,7 @@ class Provider {
     }
     if (factory != null) {
       const csp = await factory.build(opContext, []);
+      opContext.registerProvider(csp);
       const c = csp ? csp.locate(code) : null;
       if (c) {
         if (factory.iteratable()) {

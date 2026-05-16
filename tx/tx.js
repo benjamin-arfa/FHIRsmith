@@ -306,6 +306,18 @@ class TXModule {
       req.txI18n = this.i18n;
       req.txLog = this.log;
 
+      // Release any code-system providers that opened sqlite connections
+      // during this request. closeProviders() is idempotent so it's safe
+      // for both events to fire. Listeners are sync; the close itself
+      // runs fire-and-forget on the event loop.
+      const releaseProviders = () => {
+        opContext.closeProviders().catch((err) => {
+          try { this.log.warn(`closeProviders failed: ${err && err.message}`); } catch (_) { /* ignore */ }
+        });
+      };
+      res.on('finish', releaseProviders);
+      res.on('close', releaseProviders);
+
       // Add X-Request-Id header to response
       res.setHeader('X-Request-Id', requestId);
 
