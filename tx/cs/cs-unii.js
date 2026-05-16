@@ -210,18 +210,18 @@ class UniiServicesFactory extends CodeSystemFactoryProvider {
   }
 
   async load() {
-    let db = new sqlite3.Database(this.dbPath);
-
-    return new Promise((resolve, reject) => {
-      db.get('SELECT Version FROM UniiVersion', (err, row) => {
-        if (err) {
-          reject(new Error(err));
-        } else {
-          this._version = row ? row.Version : 'unknown';
-          resolve(); // This resolves the Promise
-        }
+    const db = new sqlite3.Database(this.dbPath, sqlite3.OPEN_READONLY);
+    try {
+      const row = await new Promise((resolve, reject) => {
+        db.get('SELECT Version FROM UniiVersion', (err, result) => {
+          if (err) reject(new Error(err));
+          else resolve(result);
+        });
       });
-    });
+      this._version = row ? row.Version : 'unknown';
+    } finally {
+      await new Promise((resolve) => db.close(() => resolve()));
+    }
   }
 
   defaultVersion() {

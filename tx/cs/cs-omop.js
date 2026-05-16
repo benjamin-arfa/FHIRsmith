@@ -906,40 +906,41 @@ class OMOPServicesFactory extends CodeSystemFactoryProvider {
     return new OMOPServices(opContext, supplements, db, this._sharedData);
   }
 
-  static checkDB(dbPath) {
+  static async checkDB(dbPath) {
+    const fs = require('fs');
     try {
-      const fs = require('fs');
-
-      // Check if file exists
       if (!fs.existsSync(dbPath)) {
         return 'Database file not found';
       }
-
-      // Check file size
       const stats = fs.statSync(dbPath);
       if (stats.size < 1024) {
         return 'Database file too small';
       }
-
-      // Try to open database and check for required tables
-      const db = new sqlite3.Database(dbPath);
-
-      try {
-        // Simple count query to verify database integrity
-        db.get('SELECT COUNT(*) as count FROM Concepts', (err) => {
-          if (err) {
-            db.close();
-            return 'Missing Tables - needs re-importing (by java)';
-          }
-        });
-
-        db.close();
-        return 'OK (check via provider for count)';
-      } catch (e) {
-        return 'Missing Tables - needs re-importing (by java)';
-      }
     } catch (e) {
       return `Database error: ${e.message}`;
+    }
+
+    let db;
+    try {
+      db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY);
+    } catch (e) {
+      return `Database error: ${e.message}`;
+    }
+
+    try {
+      // Simple count query to verify database integrity. If the Concepts
+      // table is missing, db.get rejects and we fall through to the catch.
+      const row = await new Promise((resolve, reject) => {
+        db.get('SELECT COUNT(*) as count FROM Concepts', (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        });
+      });
+      return `OK (${row && row.count != null ? row.count : 0} Concepts)`;
+    } catch (_e) {
+      return 'Missing Tables - needs re-importing (by java)';
+    } finally {
+      await new Promise((resolve) => db.close(() => resolve()));
     }
   }
 

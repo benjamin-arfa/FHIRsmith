@@ -94,8 +94,8 @@ describe('OMOP Provider', () => {
       expect(provider).toBeInstanceOf(OMOPServices);
     });
 
-    test('should check database status', () => {
-      const status = OMOPServicesFactory.checkDB(testDbPath);
+    test('should check database status', async () => {
+      const status = await OMOPServicesFactory.checkDB(testDbPath);
       expect(status).toContain('OK');
     });
 
