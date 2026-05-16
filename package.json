@@ -61,7 +61,7 @@
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
     "properties-file": "^3.6.4",
-    "re2-wasm": "^1.0.2",
+    "re2js": "^2.8.0",
     "rimraf": "^5.0.10",
     "sqlite3": "^5.1.7",
     "tar": "^7.5.7",
