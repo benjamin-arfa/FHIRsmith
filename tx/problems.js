@@ -2,10 +2,6 @@ const escape = require('escape-html');
 
 class ProblemFinder {
 
-  constructor() {
-    this.map = new Map();
-  }
-
   async scanValueSets(provider) {
     let unknownVersions = {};  // system -> Set of versions not known to the server
     for (let vsp of provider.valueSetProviders) {

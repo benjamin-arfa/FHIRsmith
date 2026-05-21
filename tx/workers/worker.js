@@ -184,6 +184,10 @@ class TerminologyWorker {
       if (checkVer) {
         this.checkVersion(url, provider.version(), params, provider.versionAlgorithm(), op);
       }
+      // Track for lifecycle cleanup at end of request. Providers built from
+      // a factory open a fresh sqlite connection that needs releasing;
+      // resource-built providers and others without close() are no-ops.
+      this.opContext.registerProvider(provider);
     }
 
     return provider;

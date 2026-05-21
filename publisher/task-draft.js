@@ -191,6 +191,7 @@ class DraftTaskProcessor {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
+      // eslint-disable-next-line no-unused-vars
       let stdout = '';
       let stderr = '';
 
@@ -255,6 +256,7 @@ class DraftTaskProcessor {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
+      // eslint-disable-next-line no-unused-vars
       let stdout = '';
       let stderr = '';
 
@@ -316,6 +318,7 @@ class DraftTaskProcessor {
       });
 
       let stdout = '';
+      // eslint-disable-next-line no-unused-vars
       let stderr = '';
 
       sushi.stdout.on('data', (data) => {
@@ -382,6 +385,7 @@ class DraftTaskProcessor {
       logStream.write('Working Directory: ' + draftDir + '\n');
       logStream.write('=====================================\n\n');
 
+      // eslint-disable-next-line no-unused-vars
       let hasOutput = false;
       let lastProgressUpdate = Date.now();
 
@@ -433,7 +437,8 @@ class DraftTaskProcessor {
         reject(error);
       });
 
-      // Timeout after 30 minutes
+      // Timeout configurable via publisher.igPublisherTimeoutMinutes (default: 60 minutes)
+      const timeoutMinutes = this.config.igPublisherTimeoutMinutes || 60;
       const timeout = setTimeout(async () => {
         java.kill('SIGTERM'); // Try graceful shutdown first
 
@@ -442,11 +447,11 @@ class DraftTaskProcessor {
           java.kill('SIGKILL');
         }, 10000);
 
-        logStream.write('\nTIMEOUT: Process killed after 30 minutes\n');
+        logStream.write('\nTIMEOUT: Process killed after ' + timeoutMinutes + ' minutes\n');
         logStream.end();
-        await this.logTaskMessage(taskId, 'error', 'IG Publisher timed out after 30 minutes');
+        await this.logTaskMessage(taskId, 'error', 'IG Publisher timed out after ' + timeoutMinutes + ' minutes');
         reject(new Error('IG Publisher timed out'));
-      }, 30 * 60 * 1000);
+      }, timeoutMinutes * 60 * 1000);
 
       java.on('close', () => {
         clearTimeout(timeout);

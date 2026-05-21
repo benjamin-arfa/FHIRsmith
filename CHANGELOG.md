@@ -6,11 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v0.9.6] - 2026-XX-XX
+
+### Fixed
+
+- Replace re2-wasm with re2js in library/regex-utilities.js to eliminate the underlying WASM-heap leak
+
+### Tx Conformance Statement
+
+XXX
+
 ## [v0.9.5] - 2026-05-16
 
 ### Fixed
 
 - Workaround for memory leak in re2-wasm library that reduces it's severity
+- Replace re2-wasm with re2js in library/regex-utilities.js to eliminate the underlying WASM-heap leak
 
 ### Tx Conformance Statement
 

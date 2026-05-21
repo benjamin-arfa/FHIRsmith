@@ -1429,8 +1429,8 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
    * @returns {Promise<Array>} Array of {code, display} objects
    */
   async #getAnswerListConcepts(sourceKey) {
-    return new Promise((resolve, reject) => {
-      let db = new sqlite3.Database(this.dbPath);
+    const db = new sqlite3.Database(this.dbPath, sqlite3.OPEN_READONLY);
+    try {
       const sql = `
           SELECT Code, Description
           FROM Relationships, Codes
@@ -1439,17 +1439,17 @@ class LoincServicesFactory extends CodeSystemFactoryProvider {
             AND Relationships.TargetKey = Codes.CodeKey
       `;
 
-      db.all(sql, [sourceKey], (err, rows) => {
-        if (err) {
-          reject(err);
-        } else {
-          const concepts = rows.map(row => ({
-            code: row.Code
-          }));
-          resolve(concepts);
-        }
+      const rows = await new Promise((resolve, reject) => {
+        db.all(sql, [sourceKey], (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        });
       });
-    });
+
+      return rows.map(row => ({ code: row.Code }));
+    } finally {
+      await new Promise((resolve) => db.close(() => resolve()));
+    }
   }
 
   id() {
