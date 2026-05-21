@@ -25,6 +25,13 @@ class PublisherModule {
     this.config = config;
     this.logger = require('../library/logger').getInstance().child({ module: 'publisher' });
 
+    const { isLineBuffered } = require('./spawn-java');
+    if (isLineBuffered()) {
+      this.logger.info('IG Publisher output will be line-buffered via stdbuf (prompt log updates)');
+    } else {
+      this.logger.warn('stdbuf not available - IG Publisher stdout will be block-buffered, log may appear to stall during long phases');
+    }
+
     // Initialize database first
     await this.initializeDatabase();
 
@@ -603,12 +610,12 @@ class PublisherModule {
   }
 
   async runIGPublisher(publisherJar, draftDir, logFile, taskId) {
-    const { spawn } = require('child_process');
+    const { spawnJava } = require('./spawn-java');
 
     await this.logTaskMessage(taskId, 'info', 'Running FHIR IG Publisher...');
 
     return new Promise((resolve, reject) => {
-      const java = spawn('java', [
+      const java = spawnJava([
         '-jar',
         '-Xmx20000m',
         publisherJar,
@@ -806,7 +813,7 @@ class PublisherModule {
   }
 
   async runPublisherGoPublish(taskId, publisherJar, sourceDir, webDir, registryDir, historyDir, templatesDir, zipsDir, logFile) {
-    const { spawn } = require('child_process');
+    const { spawnJava } = require('./spawn-java');
 
     const registryFile = path.join(registryDir, 'fhir-ig-list.json');
 
@@ -824,7 +831,7 @@ class PublisherModule {
     await this.logTaskMessage(taskId, 'info', 'java ' + args.join(' '));
 
     return new Promise((resolve, reject) => {
-      const java = spawn('java', args, {
+      const java = spawnJava(args, {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 

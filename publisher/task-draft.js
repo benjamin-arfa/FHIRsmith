@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const axios = require('axios');
+const { spawnJava } = require('./spawn-java');
 
 class DraftTaskProcessor {
   constructor(config, logger, logTaskMessage, updateTaskStatus) {
@@ -363,7 +364,7 @@ class DraftTaskProcessor {
     }
 
     return new Promise((resolve, reject) => {
-      const java = spawn('java', [
+      const java = spawnJava([
         '-jar',
         '-Xmx20000m',
         publisherJar,
