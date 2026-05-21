@@ -30,21 +30,32 @@ class CompiledRegex {
 
 class RegExUtilities {
 
+  // re2js doesn't have re2-wasm's WASM-heap leak, so the cache here is
+  // purely a performance optimisation. We cap it with a simple LRU so a
+  // workload with many distinct regex patterns can't grow it without bound.
+  static MAX_CACHE_SIZE = 1000;
+
   constructor() {
     this._cache = new Map();
   }
 
   compile(pattern, flags) {
-    // re2js doesn't have re2-wasm's WASM-heap leak, so the cache here is
-    // purely a performance optimisation: identical (pattern, flags) pairs
-    // reuse the same compiled regex instead of paying the compile cost
-    // every call.
     const key = pattern + '|' + (flags || '');
-    let compiled = this._cache.get(key);
-    if (!compiled) {
-      compiled = new CompiledRegex(pattern, flags);
-      this._cache.set(key, compiled);
+    const cached = this._cache.get(key);
+    if (cached) {
+      // Move to most-recently-used position by re-inserting.
+      this._cache.delete(key);
+      this._cache.set(key, cached);
+      return cached;
     }
+    const compiled = new CompiledRegex(pattern, flags);
+    if (this._cache.size >= RegExUtilities.MAX_CACHE_SIZE) {
+      // Evict the oldest entry. Map iteration order is insertion order, so
+      // the first key is the least-recently-used.
+      const oldest = this._cache.keys().next().value;
+      this._cache.delete(oldest);
+    }
+    this._cache.set(key, compiled);
     return compiled;
   }
 
