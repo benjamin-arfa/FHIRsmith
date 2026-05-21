@@ -191,6 +191,7 @@ class DraftTaskProcessor {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
+      // eslint-disable-next-line no-unused-vars
       let stdout = '';
       let stderr = '';
 
@@ -255,6 +256,7 @@ class DraftTaskProcessor {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
+      // eslint-disable-next-line no-unused-vars
       let stdout = '';
       let stderr = '';
 
@@ -316,6 +318,7 @@ class DraftTaskProcessor {
       });
 
       let stdout = '';
+      // eslint-disable-next-line no-unused-vars
       let stderr = '';
 
       sushi.stdout.on('data', (data) => {
@@ -382,6 +385,7 @@ class DraftTaskProcessor {
       logStream.write('Working Directory: ' + draftDir + '\n');
       logStream.write('=====================================\n\n');
 
+      // eslint-disable-next-line no-unused-vars
       let hasOutput = false;
       let lastProgressUpdate = Date.now();
 
