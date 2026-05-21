@@ -63,7 +63,8 @@
       "enabled": true,
       "database": "/absolute/path/to/publisher.db",
       "sessionSecret": "change-this-to-a-secure-random-string",
-      "workspaceRoot": "/absolute/path/to/workspaces"
+      "workspaceRoot": "/absolute/path/to/workspaces",
+      "igPublisherTimeoutMinutes": 60
     },
     "npmprojector": {
       "enabled": true,
