@@ -6,15 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [v0.9.6] - 2026-XX-XX
+## [v0.9.6] - 2026-05-21
+
+### Added
+
+- increase timeout when publishing IGs (for US Core)
 
 ### Fixed
 
 - Replace re2-wasm with re2js in library/regex-utilities.js to eliminate the underlying WASM-heap leak
+- Fix async problem loading OMOP
+- Fix memory leaks
+- Don't leak database connections
 
 ### Tx Conformance Statement
 
-XXX
+FHIRsmith passed all 1649 HL7 terminology service tests (modes tx.fhir.org+omop+general+snomed, tests v1.9.1, runner v6.9.7)
 
 ## [v0.9.5] - 2026-05-16
 
