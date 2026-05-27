@@ -34,8 +34,12 @@ const packageJson = require('./package.json');
 // Startup banner
 const totalMemGB = (os.totalmem() / 1024 / 1024 / 1024).toFixed(1);
 const freeMemGB = (os.freemem() / 1024 / 1024 / 1024).toFixed(1);
+const brandName = packageJson.customization || 'FHIRsmith';
 serverLog.info(`========================================`);
 serverLog.info(`FHIRsmith v${packageJson.version} starting (PID ${process.pid})`);
+if (brandName !== 'FHIRsmith') {
+  serverLog.info(`${brandName} customization (powered by FHIRsmith v${packageJson.version})`);
+}
 serverLog.info(`Node.js ${process.version} on ${os.type()} ${os.release()} (${os.arch()})`);
 serverLog.info(`Memory: ${freeMemGB} GB free / ${totalMemGB} GB total`);
 serverLog.info(`Data directory: ${folders.dataDir()}`);
@@ -71,6 +75,19 @@ const app = express();
 const PORT = process.env.PORT || config.server.port || 3000;
 
 // Middleware
+
+// Identify the server in HTTP responses. Format: "<brand>/<version> (FHIRsmith)"
+// when this build is a branded customization (package.json `customization`
+// field is set), otherwise the plain FHIRsmith banner. Registered before the
+// body parsers so the header is present on parser-thrown error responses too.
+const serverHeader = brandName === 'FHIRsmith'
+  ? `FHIRsmith/${packageJson.version}`
+  : `${brandName}/${packageJson.version} (FHIRsmith)`;
+app.use((req, res, next) => {
+  res.setHeader('Server', serverHeader);
+  next();
+});
+
 app.use(express.raw({ type: 'application/fhir+json', limit: '50mb' }));
 app.use(express.raw({ type: 'application/fhir+xml', limit: '50mb' }));
 app.use(express.json({ limit: '50mb' }));

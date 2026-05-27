@@ -26,6 +26,17 @@ COPY . .
 ARG VERSION=development
 ENV APP_VERSION=$VERSION
 
+# OCI image labels — FHIRTX customization of FHIRsmith.
+# Upstream attribution is retained via `org.opencontainers.image.source`
+# (the fork) and the file-level copyright headers inside the image.
+LABEL org.opencontainers.image.title="FHIRTX (FHIRsmith)" \
+      org.opencontainers.image.description="FHIRTX-branded FHIR terminology server, built on FHIRsmith." \
+      org.opencontainers.image.vendor="FHIRTX" \
+      org.opencontainers.image.authors="Benjamin Arfa <benjamin.arfa.pro@gmail.com>" \
+      org.opencontainers.image.source="https://github.com/benjamin-arfa/FHIRsmith" \
+      org.opencontainers.image.licenses="BSD-3-Clause" \
+      org.opencontainers.image.version="${VERSION}"
+
 # Expose port and define command
 EXPOSE 3000
 CMD ["node", "server.js"]

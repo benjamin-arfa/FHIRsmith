@@ -1,3 +1,16 @@
+> ## FHIRTX customization
+>
+> This is the **FHIRTX**-branded fork of FHIRsmith maintained at
+> [`benjamin-arfa/FHIRsmith`](https://github.com/benjamin-arfa/FHIRsmith).
+> Customization details, deployment plans, and operator runbook live under
+> [`FHIRTX_Customplan/`](FHIRTX_Customplan/) and [`deploy/`](deploy/).
+>
+> Re-branding for a different customer is a JSON edit in
+> `data/config.json` under `modules.tx.*` (publisher, copyright, contact,
+> title, description) plus a `package.json` field swap (`customization`).
+> No upstream FHIRsmith semantics are changed — the file headers and
+> BSD-3 license remain as-is.
+
 # ![🔥](static/FHIRsmith64.png) FHIRsmith - FHIR Server toolkit
 
 This server provides a set of server-side services that are useful for the FHIR Community. The set of are two kinds of services:

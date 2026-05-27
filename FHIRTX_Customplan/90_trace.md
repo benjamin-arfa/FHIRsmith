@@ -63,3 +63,32 @@ explicitly. Lesson: always include the *closing* delimiter when editing
 multi-line literals.
 
 Time actual: ~45 min (vs. 1.5 h estimate — under). Difficulty actual: Easy.
+
+## Item 02 — Company identity (executed)
+
+- `server.js`:
+  - startup banner reads `packageJson.customization` (defaults to "FHIRsmith"
+    if absent), so the second line of the banner appears only when a
+    branded build is active. No conditional on the existing FHIRsmith line —
+    the upstream identity stays put.
+  - new `Server:` header middleware registered before body parsers so the
+    header is present even on parser-thrown error responses.
+- `Dockerfile`: added six OCI labels, all wired to `${VERSION}` for
+  `org.opencontainers.image.version` so each tagged image self-identifies.
+- `package.json`: added `vendor`, `customization`, `customizedBy`. `name`
+  and `author` left untouched to keep upstream npm semantics.
+- `README.md`: prepended a blockquoted "FHIRTX customization" section
+  above the existing H1 so operators see the brand callout first but the
+  upstream README stays intact for contributors.
+- `node -c server.js` passed; `JSON.parse(package.json)` round-trips with
+  the new keys.
+
+**Surprise:** none — the customization opted to be config-driven from the
+start (banner reads `packageJson.customization`), so swapping the brand
+back to plain FHIRsmith is one JSON edit. This wasn't in the plan but is
+cheaper and more flexible than the original "hardcode FHIRTX everywhere"
+phrasing in 02_company_identity.md.
+
+Time actual: ~35 min (vs. 2 h estimate — well under, because the changes
+turned out to share infrastructure with item 01). Difficulty actual:
+Easy.
