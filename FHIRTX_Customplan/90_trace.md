@@ -93,55 +93,65 @@ Time actual: ~35 min (vs. 2 h estimate — well under, because the changes
 turned out to share infrastructure with item 01). Difficulty actual:
 Easy.
 
-## Item 03 — CI for staging+prod (executed)
+## Item 03 — CI staging+prod (executed)
 
-- `.github/workflows/deploy-staging.yml`: triggers on push:main +
-  workflow_dispatch, runs on `[self-hosted, fhirtx]`, runs `npm run
-  test:unit` only (~10 min budget vs. 20 min for full CI) before calling
-  `deploy/deploy.sh staging`. Concurrency group `deploy-staging`
-  serializes overlapping pushes.
-- `.github/workflows/deploy-production.yml`: triggers on `push: tags:
-  ['v*.*.*']` + workflow_dispatch (with a `ref` input for ad-hoc
-  redeploys). Uses the `production` GitHub environment to enforce manual
-  reviewer approval before any step executes. Runs the full `test:ci`
-  before deploying — slower, but prod has to be green.
-- `deploy/deploy.sh` is idempotent: SHA-named release dirs under
-  `/opt/fhirsmith-${ENV}/releases/`, atomic `current` symlink flip, narrow
-  rsync excludes, `npm ci --omit=dev` for runtime deps, retention to keep
-  the last 5 releases for instant rollback.
-- `deploy/health-check.sh` polls `/health` for 60 s with 2 s gaps; exits 1
-  hard on timeout so the workflow turns red.
-- `deploy/systemd/fhirsmith-{staging,prod}.service`: dedicated `fhirsmith`
-  user, hardening (NoNewPrivileges, ProtectSystem=full, ReadWritePaths
-  whitelist), `Restart=on-failure`, memory caps appropriate per env (4-6 G
-  staging, 6-8 G prod).
-- `deploy/README.md` doubles as the operator runbook: user + dir
-  creation, systemd install, **runner registration** (with the token-via-
-  GitHub-UI note marked as the manual step), narrow sudoers entry, and
-  GitHub `production` environment reviewer config. Rollback is
-  documented as a one-liner.
-- Validation:
-  - `bash -n deploy/deploy.sh deploy/health-check.sh` — clean.
-  - `python3 -c 'yaml.safe_load(...)'` on both workflow files — clean.
-  - `systemd-analyze verify` intentionally skipped because the unit
-    files reference paths and a user (`fhirsmith`) that don't yet exist
-    on this host; they'll be checked when the operator actually
-    installs them per the README.
+Files created (replacing an earlier in-tree elaborate variant that had drifted
+from the plan toward SHA-release-dirs and a dedicated `fhirsmith` user):
 
-**Surprise:** the existing repo already had four workflows
-(`ci`, `docker`, `pr-pipeline`, `release`) all on GitHub-hosted runners,
-none of which deploy. So the two new files don't collide with existing
-ones — they're net-new, not replacements. I kept the original four
-untouched.
+- `.github/workflows/deploy-staging.yml` — `push:main` → checkout, setup
+  node 24, `npm ci --omit=dev`, `bash deploy/deploy.sh staging`.
+  Concurrency group `deploy-staging`, `cancel-in-progress: false` so
+  overlapping pushes queue instead of one cancelling the other.
+- `.github/workflows/deploy-production.yml` — `push: tags ['v*.*.*']` →
+  same install steps, `bash deploy/deploy.sh prod`. Single `deploy` job
+  with `environment: production` so the GitHub UI enforces reviewer
+  approval. Concurrency `deploy-prod`.
+- `deploy/deploy.sh` — `set -euo pipefail`, arg validation (exit 2 on
+  bad env), maps `staging|prod` → unit/port/data-dir, `sudo rsync -a
+  --delete --exclude=.git --exclude=node_modules ./ /opt/fhirsmith-$ENV/`,
+  `npm ci --omit=dev` inside the target, `systemctl restart`, then
+  `health-check.sh`. Single working dir per env, no release subdirs —
+  idempotent on the same SHA because rsync is a no-op.
+- `deploy/health-check.sh` — `set -euo pipefail`, count-based loop (30
+  attempts × 2 s sleep = 60 s budget), `curl -fsS
+  http://127.0.0.1:${PORT}/health`. Exit 0 on first success, exit 1
+  loud on timeout.
+- `deploy/systemd/fhirsmith-{staging,prod}.service` — `Type=simple`,
+  `User=ubuntu`, `WorkingDirectory=/opt/fhirsmith-${ENV}`, `NODE_ENV=
+  staging|production`, `PORT=3001|3002`, `FHIRSMITH_DATA_DIR=...`,
+  `ExecStart=/usr/bin/node server.js`, `Restart=on-failure`,
+  `RestartSec=10s`, journal logs.
+- `deploy/README.md` — operator runbook: mkdir/chown, systemd install,
+  runner registration (`./config.sh --url ... --token ... --labels
+  fhirtx --name fhirtx-runner`), `production` environment + reviewer
+  config, narrow sudoers entry for the deploy paths.
 
-**Surprise 2:** the deploy script's sudo dependency drove a real
-decision — I considered making `deploy.sh` run *as* the `fhirsmith` user
-(no sudo at all) but then `systemctl restart` and `rsync` to
-`/opt/...` would have failed. The compromise is a narrow sudoers entry
-in the runbook rather than NOPASSWD:ALL.
+Validation:
 
-Time actual: ~55 min (vs. 3.5 h estimate — way under, because the
-plan absorbed most of the design work). Difficulty actual: Medium —
-the design choices (atomic symlink flip, retention policy, narrow
-sudoers, manual approval via `environment:` rather than branch
-protection) each took thought even though no single one was hard.
+- `bash -n deploy/deploy.sh deploy/health-check.sh` — clean.
+- `python3 -c 'import yaml; [yaml.safe_load(open(f)) for f in
+  [".github/workflows/deploy-staging.yml",
+  ".github/workflows/deploy-production.yml"]]'` — clean.
+- `chmod +x deploy/deploy.sh deploy/health-check.sh` — applied.
+- `systemd-analyze verify` — skipped, intentionally: the unit files
+  reference paths that don't yet exist on this host until the operator
+  runs the one-time setup in `deploy/README.md`.
+
+**Surprise:** an earlier execution had already shipped a more elaborate
+variant of item 03 (`SHA-release-dirs + atomic symlink flip + dedicated
+`fhirsmith` user with `ProtectSystem=full` hardening + a test step in
+each workflow`). It was working code but had drifted from the plan's
+explicit spec — simple working dir, `User=ubuntu`, no test step, count-
+based health loop, concurrency group `deploy-prod`. Rewrote all six
+files to match the plan exactly. Net effect: a smaller, easier-to-
+review surface; rollback is now a `git checkout <sha> && bash
+deploy/deploy.sh prod` rather than a symlink flip.
+
+**Surprise 2:** the existing repo already has four workflows
+(`ci`, `docker`, `pr-pipeline`, `release`) on GitHub-hosted runners,
+none of which deploy. The two new files don't collide — they're
+net-new, not replacements. Left the originals untouched.
+
+Time actual: ~25 min. Difficulty actual: **Easy** (vs. Medium estimated),
+because the plan locked the design before any keystroke — no decisions
+to make at write-time.
