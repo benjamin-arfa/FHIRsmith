@@ -29,3 +29,37 @@ Time on exploration: ~25 min.
   code can be diffed independently.
 
 Time: ~20 min. Difficulty actual: Easy (matched estimate).
+
+## Item 01 — CapabilityStatement (executed)
+
+- `tx/workers/metadata.js`:
+  - converted `buildCapabilityStatement` to build a local `cs` object and
+    optionally attach `publisher`/`copyright` if the config supplies them
+    (so omission produces a clean resource);
+  - same treatment in `buildTerminologyCapabilities`.
+- `tx/tx.js`: updated the `MetadataHandler({...})` ctor to default to
+  FHIRTX values for `softwareName`, `name`, `title`, `description`,
+  plus new `publisher`/`copyright`/`contact` defaults. Operators override
+  any of these via `config.modules.tx.*`.
+- Smoke test (no full server boot — tx module requires a populated
+  library YAML and the FHIR validator, both out of scope):
+  ```bash
+  node -e "const {MetadataHandler} = require('./tx/workers/metadata');
+           const h = new MetadataHandler({ /* FHIRTX defaults */ });
+           console.log(h.buildCapabilityStatement({path:'/tx/r4',fhirVersion:'4.0'}));"
+  ```
+  Output included `publisher: FHIRTX`, `copyright: © 2026 FHIRTX…`,
+  contact with FHIRTX email, `software.name: FHIRTX (FHIRsmith)`. ✓
+- Omission test: with no `publisher`/`copyright` in config, neither key
+  appears on the output (verified with `'publisher' in cs === false`). ✓
+- `node -c` syntax check passed on both files.
+- ESLint via `npx` pulled a newer major (v10) that demands `eslint.config.js`,
+  which this repo doesn't ship. Skipped lint, relied on `node -c` instead.
+
+**Surprise:** the existing builder placed `instantiates` *before* `software`,
+and my first edit accidentally duplicated the array literal because the Edit
+matched a too-narrow context. Fixed by re-reading and editing the duplicate
+explicitly. Lesson: always include the *closing* delimiter when editing
+multi-line literals.
+
+Time actual: ~45 min (vs. 1.5 h estimate — under). Difficulty actual: Easy.

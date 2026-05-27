@@ -169,17 +169,31 @@ class TXModule {
     await this.i18n.load();
     this.log.info('I18n support initialized');
 
-    // Initialize metadata handler with config
+    // Initialize metadata handler with config.
+    //
+    // Defaults below carry the FHIRTX brand (customization of FHIRsmith).
+    // Operators re-brand the server by setting any of these keys under
+    // `modules.tx` in their `config.json` — no code change needed.
     this.metadataHandler = new MetadataHandler({
       baseUrl: config.baseUrl,
       serverVersion: packageJson.version,
       txVersion: packageJson.txVersion,
-      softwareName: config.softwareName || 'FHIRsmith',
-      name: config.name || 'FHIRTerminologyServer',
-      title: config.title || 'FHIR Terminology Server',
-      description: config.description || 'FHIR Terminology Server',
+      softwareName: config.softwareName || 'FHIRTX (FHIRsmith)',
+      name: config.name || 'FHIRTXTerminologyServer',
+      title: config.title || 'FHIRTX FHIR Terminology Server',
+      description: config.description || 'FHIRTX-branded FHIR terminology server, built on FHIRsmith.',
+      publisher: config.publisher || 'FHIRTX',
+      copyright: config.copyright || '© 2026 FHIRTX. All rights reserved. Built on FHIRsmith (BSD-3).',
       contactUrl: config.contactUrl,
-      contact: config.contact,
+      contact: config.contact || [
+        {
+          name: 'FHIRTX',
+          telecom: [
+            { system: 'email', value: 'benjamin.arfa.pro@gmail.com' },
+            { system: 'url', value: 'https://fhirtx.example' }
+          ]
+        }
+      ],
       releaseDate: config.releaseDate,
       host: config.host ? config.host : "localhost"
     });

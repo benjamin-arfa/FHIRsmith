@@ -113,7 +113,7 @@ class MetadataHandler {
     const baseUrl = this.config.baseUrl || `https://${this.host}${endpoint.path}`;
     const serverVersion = this.config.serverVersion;
 
-    return {
+    const cs = {
       resourceType: 'CapabilityStatement',
       id: this.config.id || 'FhirServer',
       'extension' : [
@@ -272,6 +272,17 @@ class MetadataHandler {
         }
       ]
     };
+
+    // Optional FHIRTX/operator branding — emitted only if configured so the
+    // resource stays clean when no override is set.
+    if (this.config.publisher) {
+      cs.publisher = this.config.publisher;
+    }
+    if (this.config.copyright) {
+      cs.copyright = this.config.copyright;
+    }
+
+    return cs;
   }
 
   /**
@@ -311,6 +322,13 @@ class MetadataHandler {
       validateCode: this.buildValidateCodeCapabilities(),
       translation: this.buildTranslationCapabilities()
     };
+
+    if (this.config.publisher) {
+      tc.publisher = this.config.publisher;
+    }
+    if (this.config.copyright) {
+      tc.copyright = this.config.copyright;
+    }
 
     return tc;
   }
