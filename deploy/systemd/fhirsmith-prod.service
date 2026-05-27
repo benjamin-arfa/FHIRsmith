@@ -1,0 +1,30 @@
+[Unit]
+Description=FHIRsmith (FHIRTX) — production
+Documentation=https://github.com/benjamin-arfa/FHIRsmith
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=fhirsmith
+Group=fhirsmith
+WorkingDirectory=/opt/fhirsmith-prod/current
+Environment=NODE_ENV=production
+Environment=PORT=3002
+Environment=FHIRSMITH_DATA_DIR=/var/lib/fhirsmith-prod
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=10s
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/fhirsmith-prod /opt/fhirsmith-prod
+
+LimitNOFILE=65536
+MemoryHigh=6G
+MemoryMax=8G
+
+[Install]
+WantedBy=multi-user.target

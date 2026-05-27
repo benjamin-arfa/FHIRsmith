@@ -92,3 +92,56 @@ phrasing in 02_company_identity.md.
 Time actual: ~35 min (vs. 2 h estimate — well under, because the changes
 turned out to share infrastructure with item 01). Difficulty actual:
 Easy.
+
+## Item 03 — CI for staging+prod (executed)
+
+- `.github/workflows/deploy-staging.yml`: triggers on push:main +
+  workflow_dispatch, runs on `[self-hosted, fhirtx]`, runs `npm run
+  test:unit` only (~10 min budget vs. 20 min for full CI) before calling
+  `deploy/deploy.sh staging`. Concurrency group `deploy-staging`
+  serializes overlapping pushes.
+- `.github/workflows/deploy-production.yml`: triggers on `push: tags:
+  ['v*.*.*']` + workflow_dispatch (with a `ref` input for ad-hoc
+  redeploys). Uses the `production` GitHub environment to enforce manual
+  reviewer approval before any step executes. Runs the full `test:ci`
+  before deploying — slower, but prod has to be green.
+- `deploy/deploy.sh` is idempotent: SHA-named release dirs under
+  `/opt/fhirsmith-${ENV}/releases/`, atomic `current` symlink flip, narrow
+  rsync excludes, `npm ci --omit=dev` for runtime deps, retention to keep
+  the last 5 releases for instant rollback.
+- `deploy/health-check.sh` polls `/health` for 60 s with 2 s gaps; exits 1
+  hard on timeout so the workflow turns red.
+- `deploy/systemd/fhirsmith-{staging,prod}.service`: dedicated `fhirsmith`
+  user, hardening (NoNewPrivileges, ProtectSystem=full, ReadWritePaths
+  whitelist), `Restart=on-failure`, memory caps appropriate per env (4-6 G
+  staging, 6-8 G prod).
+- `deploy/README.md` doubles as the operator runbook: user + dir
+  creation, systemd install, **runner registration** (with the token-via-
+  GitHub-UI note marked as the manual step), narrow sudoers entry, and
+  GitHub `production` environment reviewer config. Rollback is
+  documented as a one-liner.
+- Validation:
+  - `bash -n deploy/deploy.sh deploy/health-check.sh` — clean.
+  - `python3 -c 'yaml.safe_load(...)'` on both workflow files — clean.
+  - `systemd-analyze verify` intentionally skipped because the unit
+    files reference paths and a user (`fhirsmith`) that don't yet exist
+    on this host; they'll be checked when the operator actually
+    installs them per the README.
+
+**Surprise:** the existing repo already had four workflows
+(`ci`, `docker`, `pr-pipeline`, `release`) all on GitHub-hosted runners,
+none of which deploy. So the two new files don't collide with existing
+ones — they're net-new, not replacements. I kept the original four
+untouched.
+
+**Surprise 2:** the deploy script's sudo dependency drove a real
+decision — I considered making `deploy.sh` run *as* the `fhirsmith` user
+(no sudo at all) but then `systemctl restart` and `rsync` to
+`/opt/...` would have failed. The compromise is a narrow sudoers entry
+in the runbook rather than NOPASSWD:ALL.
+
+Time actual: ~55 min (vs. 3.5 h estimate — way under, because the
+plan absorbed most of the design work). Difficulty actual: Medium —
+the design choices (atomic symlink flip, retention policy, narrow
+sudoers, manual approval via `environment:` rather than branch
+protection) each took thought even though no single one was hard.
