@@ -2,15 +2,9 @@
 #
 # deploy.sh ENV
 #
-# Idempotent deploy script for FHIRTX (FHIRsmith fork). Called by the
-# self-hosted GitHub Actions runner after a successful checkout/build on
-# this host. Safe to re-run with the same SHA (the rsync + restart is a
-# no-op if nothing changed).
-#
-# Layout per env:
-#   /opt/fhirsmith-${ENV}/releases/<sha>/  ← this checkout
-#   /opt/fhirsmith-${ENV}/current          → symlink to active release
-#   /var/lib/fhirsmith-${ENV}              ← data dir (config.json lives here)
+# Idempotent deploy for FHIRTX (FHIRsmith fork). Called by the self-hosted
+# GitHub Actions runner after checkout + `npm ci --omit=dev`. Safe to
+# re-run on the same SHA — rsync + restart are no-ops when nothing changed.
 #
 set -euo pipefail
 
@@ -20,46 +14,37 @@ if [[ "$ENV" != "staging" && "$ENV" != "prod" ]]; then
   exit 2
 fi
 
-SVC="fhirsmith-${ENV}.service"
-RELEASE_ROOT="/opt/fhirsmith-${ENV}"
-DATA_DIR="/var/lib/fhirsmith-${ENV}"
-PORT_DEFAULT_STAGING=3001
-PORT_DEFAULT_PROD=3002
-PORT=$([[ "$ENV" == "staging" ]] && echo "$PORT_DEFAULT_STAGING" || echo "$PORT_DEFAULT_PROD")
+case "$ENV" in
+  staging)
+    SVC="fhirsmith-staging.service"
+    PORT=3001
+    DATA_DIR="/var/lib/fhirsmith-staging"
+    ;;
+  prod)
+    SVC="fhirsmith-prod.service"
+    PORT=3002
+    DATA_DIR="/var/lib/fhirsmith-prod"
+    ;;
+esac
 
-SHA="${GITHUB_SHA:-$(git rev-parse HEAD)}"
-RELEASE_DIR="${RELEASE_ROOT}/releases/${SHA}"
+TARGET="/opt/fhirsmith-${ENV}"
 
-echo "==> Deploying ${ENV} @ ${SHA} (port ${PORT}, data ${DATA_DIR})"
+echo "==> Deploying ${ENV} → ${TARGET} (port ${PORT}, data ${DATA_DIR})"
 
-# Sanity: data dir must already exist (one-time operator setup).
-if [[ ! -d "$DATA_DIR" ]]; then
-  echo "ERROR: data dir ${DATA_DIR} missing. Run the one-time setup in deploy/README.md." >&2
-  exit 1
-fi
-
-# Stage the release.
-sudo mkdir -p "$RELEASE_DIR"
+echo "==> Rsyncing working tree to ${TARGET}"
+sudo mkdir -p "${TARGET}"
 sudo rsync -a --delete \
-  --exclude='.git' --exclude='node_modules' --exclude='data' \
-  --exclude='FHIRTX_Customplan' --exclude='deploy' \
-  ./ "$RELEASE_DIR/"
-sudo chown -R fhirsmith:fhirsmith "$RELEASE_DIR"
+  --exclude='.git' \
+  --exclude='node_modules' \
+  ./ "${TARGET}/"
 
-# Install runtime deps in the release dir (clean, deterministic).
-sudo -u fhirsmith bash -c "cd '$RELEASE_DIR' && npm ci --omit=dev --no-audit --no-fund"
+echo "==> Installing runtime deps in ${TARGET}"
+sudo bash -c "cd '${TARGET}' && npm ci --omit=dev"
 
-# Flip the 'current' symlink atomically.
-sudo ln -sfn "$RELEASE_DIR" "${RELEASE_ROOT}/current.new"
-sudo mv -Tf "${RELEASE_ROOT}/current.new" "${RELEASE_ROOT}/current"
+echo "==> Restarting ${SVC}"
+sudo systemctl restart "${SVC}"
 
-# Restart the unit.
-sudo systemctl restart "$SVC"
+echo "==> Health-checking on :${PORT}"
+bash "$(dirname "$0")/health-check.sh" "${PORT}"
 
-# Wait for healthy.
-"$(dirname "$0")/health-check.sh" "$PORT"
-
-# Retention: keep the 5 most recent releases per env.
-sudo bash -c "ls -1dt ${RELEASE_ROOT}/releases/*/ | tail -n +6 | xargs -r rm -rf"
-
-echo "==> ${ENV} @ ${SHA} is live on port ${PORT}"
+echo "==> ${ENV} is live on port ${PORT}"

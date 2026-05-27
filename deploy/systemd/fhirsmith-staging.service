@@ -1,32 +1,20 @@
 [Unit]
 Description=FHIRsmith (FHIRTX) — staging
-Documentation=https://github.com/benjamin-arfa/FHIRsmith
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=fhirsmith
-Group=fhirsmith
-WorkingDirectory=/opt/fhirsmith-staging/current
-Environment=NODE_ENV=production
+User=ubuntu
+WorkingDirectory=/opt/fhirsmith-staging
+Environment=NODE_ENV=staging
 Environment=PORT=3001
 Environment=FHIRSMITH_DATA_DIR=/var/lib/fhirsmith-staging
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=10s
-
-# Hardening
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=full
-ProtectHome=true
-ReadWritePaths=/var/lib/fhirsmith-staging /opt/fhirsmith-staging
-
-# Resource caps — generous enough for tx/xig loads but bounded.
-LimitNOFILE=65536
-MemoryHigh=4G
-MemoryMax=6G
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

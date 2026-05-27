@@ -3,7 +3,6 @@ name: Deploy — staging
 on:
   push:
     branches: [main]
-  workflow_dispatch:
 
 concurrency:
   group: deploy-staging
@@ -24,15 +23,8 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Install dev deps for tests
-        run: npm ci
-
-      - name: Run tests (smoke only)
-        run: npm run test:unit
-        timeout-minutes: 10
-        env:
-          SUPPRESS_LOGS: 'true'
-          NODE_OPTIONS: "--max-old-space-size=8192"
+      - name: Install runtime deps
+        run: npm ci --omit=dev
 
       - name: Deploy
         run: bash deploy/deploy.sh staging

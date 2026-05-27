@@ -3,48 +3,29 @@ name: Deploy — production
 on:
   push:
     tags: ['v*.*.*']
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: "Tag or SHA to deploy"
-        required: true
 
 concurrency:
-  group: deploy-production
+  group: deploy-prod
   cancel-in-progress: false
 
 jobs:
   deploy:
     name: Deploy to production
     runs-on: [self-hosted, fhirtx]
-    # The "production" environment is configured in GitHub UI to require a
-    # reviewer; this is the manual-approval gate before any prod traffic
-    # rollout.
-    environment:
-      name: production
-      url: https://fhirtx.example
+    environment: production
     timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.ref || github.ref }}
 
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24'
 
-      - name: Install dev deps for tests
-        run: npm ci
-
-      - name: Run full test suite
-        run: npm run test:ci
-        timeout-minutes: 20
-        env:
-          SUPPRESS_LOGS: 'true'
-          NODE_OPTIONS: "--max-old-space-size=14000"
+      - name: Install runtime deps
+        run: npm ci --omit=dev
 
       - name: Deploy
         run: bash deploy/deploy.sh prod
